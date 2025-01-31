@@ -11,9 +11,9 @@ const userRouter = new Hono<{
   };
 }>();
 
-userRouter.get("/", (c) => {
-  return c.text("Hello User!");
-});
+// userRouter.get("/", (c) => {
+//   return c.text("Hello User!");
+// });
 
 userRouter.post("/signup", async (c) => {
   const prisma = new PrismaClient({
@@ -23,7 +23,7 @@ userRouter.post("/signup", async (c) => {
   const { email, firstName, lastName, password } = await c.req.json();
 
   if (!email || !firstName || !password) {
-    return c.json({ error: "Missing required fields" });
+    return c.json({ error: "Missing required fields" }, 400);
   }
 
   const existingUser = await prisma.user.findUnique({
@@ -33,7 +33,7 @@ userRouter.post("/signup", async (c) => {
   });
 
   if (existingUser) {
-    return c.json({ error: "User already exists" });
+    return c.json({ error: "User already exists" }, 400);
   }
 
   const { hashedPassword, salt } = await hashPassword(password);
@@ -54,14 +54,13 @@ userRouter.post("/signup", async (c) => {
       {
         id: user.id,
         email: user.email,
-        salt,
       },
       c.env.JWT_SECRET
     );
-    return c.json({ user, token });
+    return c.json({ user, token }, 201);
   } catch (e) {
     console.log(e);
-    return c.json({ error: "Server Error" });
+    return c.json({ error: "Server Error" }, 500);
   }
 });
 
@@ -70,16 +69,16 @@ userRouter.post("/signin", async (c) => {
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
 
-  const { username, password } = await c.req.json();
+  const { email, password } = await c.req.json();
 
-  if (!username || !password) {
+  if (!email || !password) {
     return c.json({ error: "Username and password are required" }, 400);
   }
 
   try {
     // Fetch user from database
     const user = await prisma.user.findUnique({
-      where: { email: username },
+      where: { email: email },
     });
 
     if (!user) {
@@ -103,7 +102,7 @@ userRouter.post("/signin", async (c) => {
     }
 
     // Generate JWT
-    const token = await sign({ username }, c.env.JWT_SECRET);
+    const token = await sign({ email, id: user.id }, c.env.JWT_SECRET);
 
     return c.json({ message: "Signin successful", token });
   } catch (error) {
