@@ -3,6 +3,7 @@ import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
 import { hashPassword } from "../utils/hashPassword";
 import { sign } from "hono/jwt";
+import { signUpInput, signInInput } from "@venkat91/medium-common";
 
 const userRouter = new Hono<{
   Bindings: {
@@ -20,10 +21,16 @@ userRouter.post("/signup", async (c) => {
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
 
-  const { email, firstName, lastName, password } = await c.req.json();
+  const body = await c.req.json();
+  const { success } = signUpInput.safeParse(body);
+
+  if (!success) {
+    return c.json({ error: "Invalid input" }, 411);
+  }
+  const { email, firstName, lastName, password } = body;
 
   if (!email || !firstName || !password) {
-    return c.json({ error: "Missing required fields" }, 400);
+    return c.json({ error: "Missing required fields" }, 411);
   }
 
   const existingUser = await prisma.user.findUnique({
@@ -69,10 +76,17 @@ userRouter.post("/signin", async (c) => {
     datasourceUrl: c.env.DATABASE_URL,
   }).$extends(withAccelerate());
 
-  const { email, password } = await c.req.json();
+  const body = await c.req.json();
+  const { success } = signInInput.safeParse(body);
+
+  if (!success) {
+    return c.json({ error: "Invalid input" }, 411);
+  }
+
+  const { email, password } = body;
 
   if (!email || !password) {
-    return c.json({ error: "Username and password are required" }, 400);
+    return c.json({ error: "Username and password are required" }, 411);
   }
 
   try {

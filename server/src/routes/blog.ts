@@ -1,5 +1,6 @@
 import { PrismaClient } from "@prisma/client/edge";
 import { withAccelerate } from "@prisma/extension-accelerate";
+import { postInput, updatePostInput } from "@venkat91/medium-common";
 import { Hono } from "hono";
 import { verify } from "hono/jwt";
 
@@ -44,7 +45,14 @@ blogRouter.use(async (c, next) => {
 
 blogRouter.post("/", async (c) => {
   try {
-    const { title, content } = await c.req.json();
+    const body = await c.req.json();
+
+    const { success } = postInput.safeParse(body);
+
+    if (!success) {
+      return c.json({ error: "Invalid input" }, 411);
+    }
+    const { title, content } = body;
 
     if (!title || !content) {
       return c.json({ error: "Missing required fields" }, 400);
@@ -72,6 +80,12 @@ blogRouter.post("/", async (c) => {
 });
 
 blogRouter.put("/", async (c) => {
+  const body = await c.req.json();
+  const { success } = updatePostInput.safeParse(body);
+
+  if (!success) {
+    return c.json({ error: "Invalid input" }, 411);
+  }
   const { id, title, content } = await c.req.json();
 
   try {
@@ -85,7 +99,7 @@ blogRouter.put("/", async (c) => {
 
     // Ensure there's at least one field to update
     if (Object.keys(data).length === 0) {
-      return c.json({ error: "No fields provided to update" }, 400);
+      return c.json({ error: "No fields provided to update" }, 411);
     }
 
     const post = await prisma.post.update({
