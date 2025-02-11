@@ -1,0 +1,6 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Libre Franklin", serif;
+  --font-inter: "Inter", sans-serif;
+}
